@@ -21,7 +21,6 @@ export function log(msg){
     console.log("remix-log:", msg);
     pluginClient.emit('log',{data:msg});
 }
-window.xlog = log;
 export function info(msg){
     console.log("remix-info:", msg);
     pluginClient.emit('info',{data:msg});
