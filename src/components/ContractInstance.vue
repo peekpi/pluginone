@@ -1,9 +1,21 @@
 <template>
-    <div>
-        <b-button
-            @click="visible=!visible"
-            :disabled="disbaled"
-        >{{ toOneAddress(contract.address) }} - {{ contract.status }}</b-button>
+    <div class="lineInstance">
+        <b-button-group>
+            <b-button @click="visible=!visible" :disabled="disbaled">
+                <b-icon :icon="visible?'chevron-down':'chevron-right'"></b-icon>
+            </b-button>
+
+            <b-button class="wfont" @click="$copyText(contract.address)">{{ toOneAddress(contract.address) | short }}</b-button>
+
+            <b-link :href="ContractLink" target="_blank">
+                <b-button>
+                    <b-icon icon="box-arrow-up-right"></b-icon>
+                </b-button>
+            </b-link>
+            <b-button @click="$emit('close')">
+                <b-icon icon="x"></b-icon>
+            </b-button>
+        </b-button-group>
         <b-collapse v-model="visible">
             <div>
                 <ItemCard
@@ -41,7 +53,7 @@ export default {
     name: "ContractInstance",
     components: { ItemCard },
     data() {
-        return { visible: false, disbaled:this.contract.status=='rejected'};
+        return { visible: false, disbaled: this.contract.status == "rejected" };
     },
     props: ["contract", "abi", "hmy"],
     computed: {
@@ -53,6 +65,7 @@ export default {
             const abiEvent = [];
             let abiConstractor = null;
             //const
+            console.log("xitem: abiClassify:", this.abi);
             this.abi.forEach((item) => {
                 console.log("item:", item);
                 if (item.type == "constructor") abiConstractor = item;
@@ -63,6 +76,9 @@ export default {
             });
             return { abiConstractor, abiReadonly, abiWrite, abiPayable };
         },
+        ContractLink(){
+            return `${this.hmy.config.explorer}/#/address/${this.contract.address}`;
+        }
     },
     methods: {
         toOneAddress(hexAddress) {
@@ -70,6 +86,15 @@ export default {
             return this.hmy.crypto.toBech32(hexAddress);
         },
         contractCall(item, argv) {
+            try {
+                return this._contractCall(item, argv);
+            } catch (e) {
+                const invalid =
+                    e.toString() == "[object Object]" || e.toString() == "";
+                error(invalid ? e : e.toString());
+            }
+        },
+        _contractCall(item, argv) {
             const toString = (t, d) =>
                 t == "address" ? this.toOneAddress(d) : d.toString();
             return this.contract.methods[item.name](...argv)
@@ -78,10 +103,10 @@ export default {
                     if (item.outputs.length == 1) {
                         const output = item.outputs[0];
                         log({
-                            type:'method call',
+                            type: "method call",
                             method: item.funcName,
                             outputs: [toString(output.type, r)],
-                        })
+                        });
                         return [
                             {
                                 name: output.name,
@@ -99,20 +124,40 @@ export default {
                     }
 
                     log({
-                        type:'method call',
+                        type: "method call",
                         method: item.funcName,
-                        outputs: result.map(e=>e.value),
-                    })
+                        inputs:argv,
+                        outputs: result.map((e) => e.value),
+                    });
                     return result;
+                })
+                .catch((e) => {
+                    error(e);
+                    return Object.keys(e).map((key) => ({
+                        name: key,
+                        value: e[key],
+                    }));
                 });
         },
         contractSend(item, argv) {
+            try {
+                return this._contractSend(item, argv);
+            } catch (e) {
+                const invalid =
+                    e.toString() == "[object Object]" || e.toString() == "";
+                error(invalid ? e : e.toString());
+            }
+        },
+        _contractSend(item, argv) {
             return this.contract.methods[item.name](...argv)
                 .send(this.$store.txConfig())
                 .then((r) => {
                     log({
                         type: "method send",
                         method: item.funcName,
+                        inputs:argv,
+                        sender: this.hmy.crypto.toBech32(r.transaction.from),
+                        tx: r.transaction.id,
                         status: r.transaction.txStatus,
                     });
 
@@ -120,45 +165,25 @@ export default {
                         { name: "txStatus", value: r.transaction.txStatus },
                     ];
                     if (r.transaction.txStatus != "CONFIRMED") {
-                        return this.contractReCall(
-                            r.transaction.txPayload,
-                            r.transaction.receipt.blockHash
-                        ).then((reasonRaw) => {
-                            if (reasonRaw.error) {
-                                result.push({
-                                    name: "error",
-                                    value: reasonRaw.error,
-                                });
-                                error("error:", reasonRaw.error);
-                            } else if (
-                                reasonRaw.result.startsWith("0x08c379a0")
-                            ) {
-                                const errmsg = this.contract.abiCoder.decodeParameters(
-                                    ["string"],
-                                    "0x" + reasonRaw.result.slice(10)
-                                )[0];
-                                result.push({
-                                    name: "errorMsg:",
-                                    value: errmsg,
-                                });
-                                error(`errorMsg: ${errmsg}`);
-                            } else {
-                                result.push({
-                                    name: "errorMsg:",
-                                    value: reasonRaw.result,
-                                });
-                            }
-                            return result;
-                        });
+                        return this.contractCall(item, argv);
                     }
                     return result;
+                })
+                .catch((e) => {
+                    error(e);
+                    return [{ name: "error", value: e }];
                 });
-        },
-        contractReCall(txPayload, blockHash) {
-            blockHash;
-            const doCall = this.hmy.blockchain.Contract.call;
-            return doCall(txPayload, "latest");
         },
     },
 };
 </script>
+
+<style scoped>
+.wfont {
+    font-family: monospace, "Courier New", Courier;
+}
+
+.lineInstance {
+    margin-top: 1.5em;
+}
+</style>

@@ -4,19 +4,24 @@
             <b-form>
                 <Networks @networkChange="_hmy=>hmy=_hmy" />
                 <b-form-group label-size="sm" label="Wallet:">
-                    <b-form-select size="sm" v-model="selectWallet" :options="wallets"></b-form-select>
+                    <b-form-select v-model="selectWallet" :options="wallets"></b-form-select>
                 </b-form-group>
-                <b-form-group label-size="sm" label="Account:">
-                    <b-button @click="addAccount" variant="danger">login</b-button>
-                    <b-form-select size="sm" v-model="selected" :options="accounts" />
+                <b-form-group label-size="sm">
+                    <template v-slot:label>
+                        <span stype="padding-right:'0.2em'">Account:</span>
+                        <b-icon icon="plus-circle-fill" @click="addAccount"></b-icon>
+                    </template>
+                    <b-form-select v-model="selected" :options="accounts" />
                 </b-form-group>
-                <b-form-group label="GasLimit:">
-                    <b-form-input v-model="gasLimit"></b-form-input>
+                <b-form-group label-size="sm" label="GasLimit:">
+                    <b-form-input v-model="gasLimit" />
                 </b-form-group>
-                <b-form-group label="GasPrice:">
-                    <b-form-input v-model="gasPrice"></b-form-input>
+                <b-form-group label-size="sm" label="GasPrice:">
+                    <b-input-group append="wei">
+                        <b-form-input v-model="gasPrice" />
+                    </b-input-group>
                 </b-form-group>
-                <b-form-group label="Value:">
+                <b-form-group label-size="sm" label="Value:">
                     <b-input-group class="mt-3">
                         <b-form-input v-model="callValue" @change="valueChange" />
                         <b-input-group-append>
@@ -28,11 +33,11 @@
         </b-list-group-item>
         <b-list-group-item>
             <b-form>
-                <b-form-group label="Contract:" description="NO COMPILED CONTRACTS">
+                <b-form-group label-size="sm" :disabled="!compiledData" label="Contract:" :description="compiledData?'':'NO COMPILED CONTRACT'">
                     <b-form-select v-model="contract" :options="contracts"></b-form-select>
                     <ItemCard v-if="abiConstractor" :item="abiConstractor" :triger="deploy" />
                 </b-form-group>
-                <b-form-group label="Or">
+                <b-form-group label-size="sm" :disabled="!compiledData" label="Or">
                     <b-input-group>
                         <b-input-group-prepend>
                             <b-button @click="contractAt" variant="info">AT</b-button>
@@ -47,14 +52,16 @@
         </b-list-group-item>
         <b-list-group-item>
             <b-form>
-                <b-form-group label="Deployed Contracts:"></b-form-group>
-                <ContractInstance
-                    v-for="(instance,index) in contractInstances"
-                    :key="index"
-                    :abi="instance.abi"
-                    :hmy="hmy"
-                    :contract="instance.contract"
-                />
+                <b-form-group label-size="sm" label="Deployed Contracts:">
+                    <ContractInstance
+                        v-for="(instance,index) in contractInstances"
+                        :key="instance.contract.address"
+                        :abi="instance.abi"
+                        :hmy="hmy"
+                        :contract="instance.contract"
+                        @close="removeInstance(instance,index)"
+                    />
+                </b-form-group>
             </b-form>
         </b-list-group-item>
     </b-list-group>
@@ -64,7 +71,8 @@
 import ContractInstance from "./ContractInstance.vue";
 import ItemCard from "./ItemCard.vue";
 import Networks from "./Networks.vue";
-import { onSolidity, log } from "../js/remixClient";
+import { onSolidity, log, error } from "../js/remixClient";
+import { short } from "../js/filter";
 
 export default {
     name: "Deployment",
@@ -141,6 +149,7 @@ export default {
             ].evm.bytecode.object;
         },
         abiConstractor() {
+            if (this.abi.length == 0) return null;
             for (const i in this.abi) {
                 const item = this.abi[i];
                 if (item.type == "constructor") return item;
@@ -175,7 +184,16 @@ export default {
                 hmy,
             });
         },
-        async deploy(item, argv) {
+        async deploy(item, argv){
+            try {
+                return await this._deploy(item, argv);
+            } catch (e) {
+                const invalid =
+                    e.toString() == "[object Object]" || e.toString() == "";
+                error(invalid ? e : e.toString());
+            }
+        },
+        async _deploy(item, argv) {
             const hmy = this.hmy;
             await hmy.login();
             const deployInstance = hmy.ContractDeploy(
@@ -202,6 +220,13 @@ export default {
                 contract,
                 hmy,
             });
+            if(contract.status != "deployed"){
+                deployInstance.call({ from, ...this.$store.txConfig() }).then(
+                    code=>log(code)
+                ).catch(
+                    err=>error(err)
+                )
+            }
         },
         async addAccount() {
             const hmy = this.hmy;
@@ -212,13 +237,12 @@ export default {
                 account.address,
                 "latest"
             );
-            console.log("resp:", resp);
             account.balance = resp.result;
             const one = (parseInt(account.balance) / 1e18).toFixed(2);
             this.$set(this.accounts, 0, {
                 value: 0,
                 account,
-                text: `${account.address}(${one} one)`,
+                text: `${short(account.address)}(${one} one)`,
             });
         },
         valueChange() {
@@ -227,6 +251,11 @@ export default {
             if (this.uint == "one")
                 this.$store.data.callValue = orignNum.asOne().toHex();
             else this.$store.data.callValue = orignNum.asWei().toHex();
+        },
+        removeInstance(instance, index) {
+            this.contractInstances.splice(index, 1);
+            //delete(this.contractInstances, instance);
+            window.xx = this;
         },
     },
 };
