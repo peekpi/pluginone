@@ -3,7 +3,7 @@ import Vue from 'vue';
 
 const store = {
   data: {
-    gasLimit: "0xc3500",
+    gasLimit: "0x7a1200",
     gasPrice: "0x3b9aca00", // 1 Gwei
     callValue: "0x0",
     waitConfirm: true,
