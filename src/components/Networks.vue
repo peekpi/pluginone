@@ -1,6 +1,6 @@
 <template>
     <b-form-group label-size="sm" label="Networks:">
-        <b-form-select size="sm" v-model="network" :options="networks" @change="change" />
+        <b-form-select v-model="network" :options="networks" @change="change" />
     </b-form-group>
 </template>
 
@@ -17,13 +17,13 @@ export default {
                 {
                     value: 0,
                     config: MAINNET,
-                    sdk: new HmySDK(MAINNET),
+                    sdk: new HmySDK(MAINNET, "MAINNET"),
                     text: "MAINNET",
                 },
                 {
                     value: 1,
                     config:TESTNET,
-                    sdk: new HmySDK(TESTNET),
+                    sdk: new HmySDK(TESTNET, "TESTNET"),
                     text: "TESTNET",
                 },
                 {
