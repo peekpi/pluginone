@@ -1,10 +1,12 @@
 import { createIframeClient } from "@remixproject/plugin";
-const devMode = { port: 8081 };
+const devMode = { port: 443 };
 const pluginClient = createIframeClient({ devMode });
+//const pluginClient = createIframeClient({});
 
 let solidityCBK = null;
 
 pluginClient.onload().then(() => {
+    console.log("onload:");
     pluginClient.solidity.on(
         "compilationFinished",
         (...args)=>solidityCBK && solidityCBK(...args)
