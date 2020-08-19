@@ -58,14 +58,11 @@ export default {
     props: ["contract", "abi", "hmy"],
     computed: {
         abiClassify() {
-            console.log("abiClassify");
             const abiReadonly = [];
             const abiWrite = [];
             const abiPayable = [];
             const abiEvent = [];
             let abiConstractor = null;
-            //const
-            console.log("xitem: abiClassify:", this.abi);
             this.abi.forEach((item) => {
                 console.log("item:", item);
                 if (item.type == "constructor") abiConstractor = item;

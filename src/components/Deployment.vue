@@ -254,8 +254,6 @@ export default {
         },
         removeInstance(instance, index) {
             this.contractInstances.splice(index, 1);
-            //delete(this.contractInstances, instance);
-            window.xx = this;
         },
     },
 };
