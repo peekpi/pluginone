@@ -5,7 +5,7 @@
                 <b-icon :icon="visible?'chevron-down':'chevron-right'"></b-icon>
             </b-button>
 
-            <b-button class="wfont" @click="$copyText(contract.address)">{{ toOneAddress(contract.address) | short }}</b-button>
+            <b-button class="wfont" @click="$copyText(toOneAddress(contract.address))">{{ toOneAddress(contract.address) | short }}</b-button>
 
             <b-link :href="ContractLink" target="_blank">
                 <b-button>
