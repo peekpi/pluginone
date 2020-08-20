@@ -67,7 +67,7 @@ export default {
                     '$1"$2"$3'
                 ); // replace non quoted number by quoted number
                 inputString = inputString.replace(
-                    /(^|,\s+|,)(0[xX][0-9a-fA-F]+)(\s+,|,|$)/g,
+                    /(^|,\s+|,)(0[xX][0-9a-fA-F]+|one[0-9a-z]+)(\s+,|,|$)/g,
                     '$1"$2"$3'
                 ); // replace non quoted hex string by quoted hex string
                 const inputJSON = JSON.parse("[" + inputString + "]");
@@ -102,14 +102,13 @@ export default {
             const valArray = this.argv;
             let ret = "";
             const valArrayTest = [];
-
             for (let j = 0; j < valArray.length; j++) {
                 if (ret !== "") ret += ",";
                 let elVal = valArray[j];
                 valArrayTest.push(elVal);
                 elVal = elVal.replace(/(^|,\s+|,)(\d+)(\s+,|,|$)/g, '$1"$2"$3'); // replace non quoted number by quoted number
                 elVal = elVal.replace(
-                    /(^|,\s+|,)(0[xX][0-9a-fA-F]+)(\s+,|,|$)/g,
+                    /(^|,\s+|,)(0[xX][0-9a-fA-F]+|one[0-9a-z]+)(\s+,|,|$)/g,
                     '$1"$2"$3'
                 ); // replace non quoted hex string by quoted hex string
                 try {
