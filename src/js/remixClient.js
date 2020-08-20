@@ -1,12 +1,12 @@
 import { createIframeClient } from "@remixproject/plugin";
-const devMode = { port: 443 };
+const trustOrigins = ['https://peekpi.github.io','https://www.harmony.one']
+const devMode = { origins:trustOrigins };
 const pluginClient = createIframeClient({ devMode });
-//const pluginClient = createIframeClient({});
+//const pluginClient = createIframeClient();
 
 let solidityCBK = null;
 
 pluginClient.onload().then(() => {
-    console.log("onload:");
     pluginClient.solidity.on(
         "compilationFinished",
         (...args)=>solidityCBK && solidityCBK(...args)
