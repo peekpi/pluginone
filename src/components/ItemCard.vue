@@ -99,10 +99,13 @@ export default {
             return text;
         },
         getMultiValsString() {
+            let validLength = this.item.inputs.length;
             const valArray = this.argv;
+            if(this.argv.length < validLength)
+                validLength = this.argv.length;
             let ret = "";
             const valArrayTest = [];
-            for (let j = 0; j < valArray.length; j++) {
+            for (let j = 0; j < validLength; j++) {
                 if (ret !== "") ret += ",";
                 let elVal = valArray[j];
                 valArrayTest.push(elVal);
@@ -133,7 +136,7 @@ export default {
                 return this.getMultiValsString;
             },
         },
-    },
+    }
 };
 </script>
 
