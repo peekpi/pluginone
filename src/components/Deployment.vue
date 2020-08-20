@@ -22,7 +22,7 @@
                     </b-input-group>
                 </b-form-group>
                 <b-form-group label-size="sm" label="Value:">
-                    <b-input-group class="mt-3">
+                    <b-input-group>
                         <b-form-input v-model="callValue" @change="valueChange" />
                         <b-input-group-append>
                             <b-form-select v-model="uint" :options="uints" @change="valueChange" />
