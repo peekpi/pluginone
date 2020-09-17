@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <link rel="icon" href="<%= BASE_URL %>favicon.ico">
     <title><%= htmlWebpackPlugin.options.title %></title>
+    <script>
+      const windowFetch = window.fetch;
+      window.fetch = (...argv)=>{
+        if(argv[0] == 'https://raw.githubusercontent.com/ethereum/remix-plugin/master/projects/client/assets/origins.json')
+          return {json:()=>[]};
+        //console.log("fetch:", argv);
+        return windowFetch(...argv);
+      }
+    </script>
   </head>
   <body>
     <noscript>
