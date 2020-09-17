@@ -1,6 +1,23 @@
 import { Harmony } from '@harmony-js/core';
 import stakingAPIs from './stakingAPIs.json';
 
+export const MathWallet = 'harmony';
+export const OneWallet = 'onewallet';
+
+let walletActived = OneWallet;
+export function switchWallet(wallet){
+  console.log("switchWallet:", wallet);
+  walletActived = wallet;
+}
+
+function getWallet(){
+  return window[walletActived];
+}
+
+function getWalletName(){
+  return walletActived == OneWallet ? 'OneWallet' : 'MathWallet';
+}
+
 export class HmySDK extends Harmony {
   GAS_PRICE = new this.utils.Unit(1).asGwei().toHex(); // 1Gwei
   constructor(config, name) {
@@ -37,13 +54,13 @@ export class HmySDK extends Harmony {
 
   async walletInit() {
     let retry = 0;
-    while (!window.harmony && retry++ < 2) await this.sleep(1000);
-    if (!window.harmony) throw { message: '请安装麦子钱包' };
+    while (!getWallet() && retry++ < 2) await this.sleep(1000);
+    if (!getWallet()) throw { message: `please install ${getWalletName()}` };
   }
 
   async login() {
     await this.walletInit();
-    const account = await window.harmony.getAccount();
+    const account = await getWallet().getAccount();
     this.address = account.address;
     return account;
     //return {address:'one16xh2u9r4677egx4x3s0u966ave90l37hh7wq72'}
@@ -52,7 +69,7 @@ export class HmySDK extends Harmony {
   async logout() {
     await this.walletInit();
     this.address = null;
-    return window.harmony.forgetIdentity();
+    return getWallet().forgetIdentity();
   }
 
   delegate(from, to, amount) {
@@ -137,8 +154,8 @@ export class HmySDK extends Harmony {
     }
   ) {
     const contract = this.contracts.createContract(abi, to, options);
-    if (window.harmony)
-      contract.wallet.signTransaction = window.harmony.signTransaction; // or importPrivate
+    if (getWallet())
+      contract.wallet.signTransaction = getWallet().signTransaction; // or importPrivate
     const decodeParameters = (abi, hexdata) => {
       if (0 == abi.length) return [];
       const params = contract.abiCoder.decodeParameters(abi, hexdata);
@@ -190,7 +207,7 @@ export class HmySDK extends Harmony {
   }
 
   async txSignSend(tx) {
-    await window.harmony.signTransaction(tx);
+    await getWallet().signTransaction(tx);
     const ret = await tx.sendTransaction();
     if (ret[1] != tx.id) throw { message: ret[1] };
     return tx;
