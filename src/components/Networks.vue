@@ -1,5 +1,5 @@
 <template>
-    <b-form-group label-size="sm" label="Networks:">
+    <b-form-group :disabled="disabled" label-size="sm" label="Networks:">
         <b-form-select v-model="network" :options="networks" @change="change" />
     </b-form-group>
 </template>
@@ -11,6 +11,7 @@ import { HmySDK } from '../js/hmy.js'
 
 export default {
     name: "Envroment",
+    props:["disabled"],
     data() {
         return {
             networks: [

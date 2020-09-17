@@ -1,7 +1,7 @@
 import Vue from 'vue'
 
 export function short(text){
-    const maxlen = 16;
+    const maxlen = 18;
     if(text.length<=maxlen)
         return text;
     const charLen = maxlen - 3;
