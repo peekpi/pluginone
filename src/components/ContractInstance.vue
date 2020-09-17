@@ -5,7 +5,10 @@
                 <b-icon :icon="visible?'chevron-down':'chevron-right'"></b-icon>
             </b-button>
 
-            <b-button class="wfont" @click="$copyText(toOneAddress(contract.address))">{{ toOneAddress(contract.address) | short }}</b-button>
+            <b-button
+                class="wfont"
+                @click="$copyText(toOneAddress(contract.address))"
+            >{{ toOneAddress(contract.address) | short }}</b-button>
 
             <b-link :href="ContractLink" target="_blank">
                 <b-button>
@@ -41,6 +44,24 @@
                     :triger="contractSend"
                 />
             </div>
+            <div class="fallback border-top">
+                <b-form-group label-size="sm" label="Low level interactions">
+                    <b-input-group>
+                        <b-form-input lazy v-model="calldata" placeholder="CALLDATA" />
+                        <b-input-group-append>
+                            <b-button @click="fallbackTrigger" variant="outline-danger">Transact</b-button>
+                        </b-input-group-append>
+                    </b-input-group>
+                    <div v-if="result">
+                        <ul start="0">
+                            <li v-for="(r,i) in result" :key="i">
+                                <b v-if="r.name">{{r.name}}:</b>
+                                <span>{{r.value}}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </b-form-group>
+            </div>
         </b-collapse>
     </div>
 </template>
@@ -53,7 +74,12 @@ export default {
     name: "ContractInstance",
     components: { ItemCard },
     data() {
-        return { visible: false, disbaled: this.contract.status == "rejected" };
+        return {
+            visible: false,
+            disbaled: this.contract.status == "rejected",
+            calldata: undefined,
+            result: undefined
+        };
     },
     props: ["contract", "abi", "hmy"],
     computed: {
@@ -61,11 +87,15 @@ export default {
             const abiReadonly = [];
             const abiWrite = [];
             const abiPayable = [];
+            let fallback = null;
+            let receive = null;
             const abiEvent = [];
             let abiConstractor = null;
             this.abi.forEach((item) => {
                 console.log("item:", item);
                 if (item.type == "constructor") abiConstractor = item;
+                else if (item.type == "fallback") fallback = item;
+                else if (item.type == "receive") receive = item;
                 else if (item.type == "event") abiEvent.push(item);
                 else if (item.constant) abiReadonly.push(item);
                 else if (item.payable) abiPayable.push(item);
@@ -73,28 +103,41 @@ export default {
             });
             return { abiConstractor, abiReadonly, abiWrite, abiPayable };
         },
-        ContractLink(){
+        ContractLink() {
             return `${this.hmy.config.explorer}/#/address/${this.contract.address}`;
-        }
+        },
     },
     methods: {
         toOneAddress(hexAddress) {
             if (hexAddress.startsWith("one")) return hexAddress;
             return this.hmy.crypto.toBech32(hexAddress);
         },
-        contractCall(item, argv) {
+        async fallbackTrigger() {
             try {
-                return this._contractCall(item, argv);
+                this.result = undefined;
+                const methodObj = this.contract.fallback(this.calldata);
+                this.result = await this._contractSend(methodObj);
             } catch (e) {
                 const invalid =
                     e.toString() == "[object Object]" || e.toString() == "";
                 error(invalid ? e : e.toString());
             }
         },
-        _contractCall(item, argv) {
+        contractCall(item, argv) {
+            try {
+                const methodObj = this.contract.methods[item.name](...argv);
+                return this._contractCall(methodObj);
+            } catch (e) {
+                const invalid =
+                    e.toString() == "[object Object]" || e.toString() == "";
+                error(invalid ? e : e.toString());
+            }
+        },
+        _contractCall(methodObj) {
             const toString = (t, d) =>
                 t == "address" ? this.toOneAddress(d) : d.toString();
-            return this.contract.methods[item.name](...argv)
+            const item = methodObj.abiItem;
+            return methodObj
                 .call()
                 .then((r) => {
                     if (item.outputs.length == 1) {
@@ -123,7 +166,7 @@ export default {
                     log({
                         type: "method call",
                         method: item.funcName,
-                        inputs:argv,
+                        inputs: methodObj.params,
                         outputs: result.map((e) => e.value),
                     });
                     return result;
@@ -138,21 +181,23 @@ export default {
         },
         contractSend(item, argv) {
             try {
-                return this._contractSend(item, argv);
+                const methodObj = this.contract.methods[item.name](...argv);
+                return this._contractSend(methodObj);
             } catch (e) {
                 const invalid =
                     e.toString() == "[object Object]" || e.toString() == "";
                 error(invalid ? e : e.toString());
             }
         },
-        _contractSend(item, argv) {
-            return this.contract.methods[item.name](...argv)
+        _contractSend(methodObj) {
+            const item = methodObj.abiItem;
+            return methodObj
                 .send(this.$store.txConfig())
                 .then((r) => {
                     log({
                         type: "method send",
                         method: item.funcName,
-                        inputs:argv,
+                        inputs: methodObj.params,
                         sender: this.hmy.crypto.toBech32(r.transaction.from),
                         tx: r.transaction.id,
                         status: r.transaction.txStatus,
@@ -162,7 +207,7 @@ export default {
                         { name: "txStatus", value: r.transaction.txStatus },
                     ];
                     if (r.transaction.txStatus != "CONFIRMED") {
-                        return this.contractCall(item, argv);
+                        return this._contractCall(methodObj);
                     }
                     return result;
                 })
@@ -182,5 +227,10 @@ export default {
 
 .lineInstance {
     margin-top: 1.5em;
+}
+
+.fallback {
+    margin-top: 1em;
+    padding-top: 1em;
 }
 </style>
