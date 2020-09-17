@@ -2,11 +2,11 @@
     <b-list-group>
         <b-list-group-item>
             <b-form>
-                <Networks @networkChange="_hmy=>hmy=_hmy" />
-                <b-form-group label-size="sm" label="Wallet:">
+                <Networks :disabled="busy" @networkChange="networkChange" />
+                <b-form-group :disabled="busy" label-size="sm" label="Wallet:">
                     <b-form-select v-model="selectWallet" :options="wallets"></b-form-select>
                 </b-form-group>
-                <b-form-group label-size="sm">
+                <b-form-group :disabled="busy" label-size="sm">
                     <template v-slot:label>
                         <span stype="padding-right:'0.2em'">Account:</span>
                         <b-icon icon="plus-circle-fill" @click="addAccount"></b-icon>
@@ -33,7 +33,12 @@
         </b-list-group-item>
         <b-list-group-item>
             <b-form>
-                <b-form-group label-size="sm" :disabled="!compiledData" label="Contract:" :description="compiledData?'':'NO COMPILED CONTRACT'">
+                <b-form-group
+                    label-size="sm"
+                    :disabled="!compiledData"
+                    label="Contract:"
+                    :description="compiledData?'':'NO COMPILED CONTRACT'"
+                >
                     <b-form-select v-model="contract" :options="contracts"></b-form-select>
                     <ItemCard v-if="abiConstractor" :item="abiConstractor" :triger="deploy" />
                 </b-form-group>
@@ -52,7 +57,7 @@
         </b-list-group-item>
         <b-list-group-item>
             <b-form>
-                <b-form-group label-size="sm" label="Deployed Contracts:">
+                <b-form-group :disabled="busy || accounts.length == 0" label-size="sm" label="Deployed Contracts:">
                     <ContractInstance
                         v-for="(instance,index) in contractInstances"
                         :key="instance.contract.address"
@@ -73,6 +78,7 @@ import ItemCard from "./ItemCard.vue";
 import Networks from "./Networks.vue";
 import { onSolidity, log, error } from "../js/remixClient";
 import { short } from "../js/filter";
+import { MathWallet, OneWallet, switchWallet } from "../js/hmy";
 
 export default {
     name: "Deployment",
@@ -87,18 +93,18 @@ export default {
             this.entryFile = fileName;
         });
         return {
+            busyCount: 0,
             ind: 0,
             hmy: null,
             entryFile: null,
             compiledData: null,
             wallets: [
                 {
-                    value: 0,
+                    value: OneWallet,
                     text: "Harmony Wallet",
-                    disabled: true,
                 },
                 {
-                    value: 1,
+                    value: MathWallet,
                     text: "Math Wallet",
                 },
                 {
@@ -107,7 +113,7 @@ export default {
                     disabled: true,
                 },
             ],
-            selectWallet: 1,
+            selectWallet: MathWallet,
             selected: 0,
             accounts: [],
             uints: [
@@ -156,8 +162,20 @@ export default {
             }
             return { type: "constructor", inputs: [] };
         },
+        busy: {
+            set(busy) {
+                this.busyCount += busy ? 1 : -1;
+            },
+            get() {
+                return this.busyCount > 0;
+            },
+        },
     },
     watch: {
+        selectWallet() {
+            switchWallet(this.selectWallet);
+            this.addAccount();
+        },
         contracts() {
             this.contract = this.contracts[0].value;
         },
@@ -173,9 +191,14 @@ export default {
         },
     },
     methods: {
+        async networkChange(_hmy) {
+            this.hmy = _hmy;
+            if (this.accounts.length > 0) await this.updateBalance(this.accounts[0].account);
+            // else await this.addAccount();
+        },
         async contractAt() {
+            if (this.accounts.length == 0) await this.addAccount();
             const hmy = this.hmy;
-            await hmy.login();
             const contract = hmy.ContractAt(this.abi, this.contractAddress);
             window.c = contract;
             this.contractInstances.push({
@@ -184,7 +207,7 @@ export default {
                 hmy,
             });
         },
-        async deploy(item, argv){
+        async deploy(item, argv) {
             try {
                 return await this._deploy(item, argv);
             } catch (e) {
@@ -194,8 +217,8 @@ export default {
             }
         },
         async _deploy(item, argv) {
+            if (this.accounts.length == 0) await this.addAccount();
             const hmy = this.hmy;
-            await hmy.login();
             const deployInstance = hmy.ContractDeploy(
                 this.abi,
                 "0x" + this.evmCode,
@@ -220,30 +243,45 @@ export default {
                 contract,
                 hmy,
             });
-            if(contract.status != "deployed"){
-                deployInstance.call({ from, ...this.$store.txConfig() }).then(
-                    code=>log(code)
-                ).catch(
-                    err=>error(err)
-                )
+            if (contract.status != "deployed") {
+                deployInstance
+                    .call({ from, ...this.$store.txConfig() })
+                    .then((code) => log(code))
+                    .catch((err) => error(err));
             }
+        },
+        async updateBalance(account) {
+            this.busy = true;
+            try {
+                const hmy = this.hmy;
+                const resp = await hmy.blockchain.Account.getBalance(
+                    account.address,
+                    "latest"
+                );
+                account.balance = resp.result;
+                const one = (parseInt(account.balance) / 1e18).toFixed(2);
+                this.$set(this.accounts, 0, {
+                    value: 0,
+                    account,
+                    text: `${short(account.address)}(${one} one)`,
+                });
+            } catch (e) {
+                this.accounts = [];
+            }
+            this.busy = false;
         },
         async addAccount() {
             const hmy = this.hmy;
             if (hmy == null) return;
-            await hmy.logout();
-            const account = await hmy.login();
-            const resp = await hmy.blockchain.Account.getBalance(
-                account.address,
-                "latest"
-            );
-            account.balance = resp.result;
-            const one = (parseInt(account.balance) / 1e18).toFixed(2);
-            this.$set(this.accounts, 0, {
-                value: 0,
-                account,
-                text: `${short(account.address)}(${one} one)`,
-            });
+            this.busy = true;
+            try {
+                await hmy.logout();
+                const account = await hmy.login();
+                await this.updateBalance(account);
+            } catch (e) {
+                this.accounts = [];
+            }
+            this.busy = false;
         },
         valueChange() {
             const hmy = this.hmy;
