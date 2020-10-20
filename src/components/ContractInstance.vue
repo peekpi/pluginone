@@ -115,6 +115,7 @@ export default {
         async fallbackTrigger() {
             try {
                 this.result = undefined;
+                this.contract.updateWallet();
                 const methodObj = this.contract.fallback(this.calldata);
                 this.result = await this._contractSend(methodObj);
             } catch (e) {
@@ -125,6 +126,7 @@ export default {
         },
         contractCall(item, argv) {
             try {
+                this.contract.updateWallet();
                 const methodObj = this.contract.methods[item.name](...argv);
                 return this._contractCall(methodObj);
             } catch (e) {
@@ -181,6 +183,7 @@ export default {
         },
         contractSend(item, argv) {
             try {
+                this.contract.updateWallet();
                 const methodObj = this.contract.methods[item.name](...argv);
                 return this._contractSend(methodObj);
             } catch (e) {
@@ -194,11 +197,14 @@ export default {
             return methodObj
                 .send(this.$store.txConfig())
                 .then((r) => {
+                    let sender = r.transaction.from;
+                    if(!this.hmy.utils.isBech32Address(sender))
+                        sender = this.hmy.crypto.toBech32(r.transaction.from);
                     log({
                         type: "method send",
                         method: item.funcName,
                         inputs: methodObj.params,
-                        sender: this.hmy.crypto.toBech32(r.transaction.from),
+                        sender,
                         tx: r.transaction.id,
                         status: r.transaction.txStatus,
                     });
@@ -213,6 +219,7 @@ export default {
                 })
                 .catch((e) => {
                     error(e);
+                    console.error(e);
                     return [{ name: "error", value: e }];
                 });
         },

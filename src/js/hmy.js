@@ -4,7 +4,7 @@ import stakingAPIs from './stakingAPIs.json';
 export const MathWallet = 'harmony';
 export const OneWallet = 'onewallet';
 
-let walletActived = OneWallet;
+export let walletActived = OneWallet;
 export function switchWallet(wallet){
   console.log("switchWallet:", wallet);
   walletActived = wallet;
@@ -154,6 +154,12 @@ export class HmySDK extends Harmony {
     }
   ) {
     const contract = this.contracts.createContract(abi, to, options);
+    contract.SDK = this;
+    contract.updateWallet = function(){
+        console.log("updateWallet");
+        this.wallet.signTransaction = getWallet().signTransaction; // or importPrivate
+        this.options.from = this.SDK.crypto.fromBech32(this.SDK.address);
+    }
     if (getWallet())
       contract.wallet.signTransaction = getWallet().signTransaction; // or importPrivate
     const decodeParameters = (abi, hexdata) => {

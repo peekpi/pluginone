@@ -78,7 +78,7 @@ import ItemCard from "./ItemCard.vue";
 import Networks from "./Networks.vue";
 import { onSolidity, log, error } from "../js/remixClient";
 import { short } from "../js/filter";
-import { MathWallet, OneWallet, switchWallet } from "../js/hmy";
+import { MathWallet, OneWallet, walletActived, switchWallet } from "../js/hmy";
 
 export default {
     name: "Deployment",
@@ -101,7 +101,7 @@ export default {
             wallets: [
                 {
                     value: OneWallet,
-                    text: "Harmony Wallet",
+                    text: "Harmony One Wallet",
                 },
                 {
                     value: MathWallet,
@@ -113,7 +113,7 @@ export default {
                     disabled: true,
                 },
             ],
-            selectWallet: MathWallet,
+            selectWallet: walletActived,
             selected: 0,
             accounts: [],
             uints: [
