@@ -1,5 +1,5 @@
 import { createIframeClient } from "@remixproject/plugin";
-const trustOrigins = ['http://127.0.0.1','https://peekpi.github.io','https://www.harmony.one']
+const trustOrigins = ['http://127.0.0.1','https://peekpi.github.io','https://ide.harmony.one']
 const devMode = { origins:trustOrigins };
 const pluginClient = createIframeClient({ devMode });
 //const pluginClient = createIframeClient();
