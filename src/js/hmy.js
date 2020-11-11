@@ -6,7 +6,6 @@ export const OneWallet = 'onewallet';
 
 export let walletActived = OneWallet;
 export function switchWallet(wallet){
-  console.log("switchWallet:", wallet);
   walletActived = wallet;
 }
 
@@ -37,10 +36,12 @@ export class HmySDK extends Harmony {
       const modname = mod.name.split(' ')[0];
       const methodsObj = {};
       mod.methods.map(method => {
-        const name = method.startsWith('hmy_') ? method.slice(4) : method;
+        const names = method.split('_');
+        const namespace = names.length > 1 ? names[0] : undefined;
+        const name =  names.length > 1 ? names[1] : names[0];
         methodsObj[name] = (...args) => {
           return this.messenger
-            .send(method, [...args])
+            .send(method, [...args], namespace)
             .then(result => result.getRaw);
         };
       });
@@ -149,14 +150,11 @@ export class HmySDK extends Harmony {
     to,
     options = {
       from: this.address ? this.crypto.fromBech32(this.address) : '',
-      gas: '210000',
-      gasPrice: this.GAS_PRICE,
     }
   ) {
     const contract = this.contracts.createContract(abi, to, options);
     contract.SDK = this;
     contract.updateWallet = function(){
-        console.log("updateWallet");
         this.wallet.signTransaction = getWallet().signTransaction; // or importPrivate
         this.options.from = this.SDK.crypto.fromBech32(this.SDK.address);
     }

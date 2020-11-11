@@ -94,5 +94,11 @@
             "hmy_isBlockSigner",
             "hmy_getBlockSigners"
         ]
+    },
+    {
+        "name": "Trace Related Methods",
+        "methods": [
+            "debug_traceTransaction"
+        ]
     }
 ]
